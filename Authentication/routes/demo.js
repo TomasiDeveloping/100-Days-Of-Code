@@ -10,7 +10,20 @@ router.get('/', function (req, res) {
 });
 
 router.get('/signup', function (req, res) {
-  res.render('signup');
+  let sessionInputData = req.session.inputData;
+
+  if (!sessionInputData) {
+    sessionInputData = {
+      hasError: false,
+      email: '',
+      confirmEmail: '',
+      password: ''
+    };
+  }
+
+  req.session.inputData = null;
+
+  res.render('signup', {inputData: sessionInputData});
 });
 
 router.get('/login', function (req, res) {
@@ -24,8 +37,18 @@ router.post('/signup', async function (req, res) {
   const entredPassword = userDate.password;
 
   if (!entredEmail || !entredConfirmEmail || !entredPassword || entredPassword.trim() < 6 || entredEmail !== entredConfirmEmail || !entredEmail.includes('@')) {
-    console.log('Incorrect data');
-    return res.redirect('/dignup');
+    req.session.inputData = {
+      hasError: true,
+      message: 'Invalid input - please check you data.',
+      emai: entredEmail,
+      confirmEmail: entredConfirmEmail,
+      password: entredPassword
+    };
+
+    req.session.save(function() {
+      res.redirect('/signup');
+    });
+    return;
   }
 
   const existingUser = await db.getDb().collection('users').findOne({email: entredEmail});
@@ -66,14 +89,25 @@ router.post('/login', async function (req, res) {
     return res.redirect('/login');
   }
 
-  console.log('User is authenticated!');
-  res.redirect('/admin');
+  req.session.user = { id: existingUser._id, email: existingUser.email};
+  req.session.isAuthenticated = true;
+  req.session.save(function() {
+    res.redirect('/admin');
+  });
 });
 
 router.get('/admin', function (req, res) {
+  if (!req.session.isAuthenticated) {
+    return res.status(401).render('401');
+  }
   res.render('admin');
 });
 
-router.post('/logout', function (req, res) {});
+router.post('/logout', function (req, res) {
+  req.session.user = null;
+  req.session.isAuthenticated = false;
+
+  res.redirect('/');
+});
 
 module.exports = router;
