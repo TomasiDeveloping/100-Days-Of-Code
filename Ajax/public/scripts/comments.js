@@ -1,3 +1,5 @@
+const { response } = require("express");
+
 const loadCommentsBtnElement = document.getElementById('load-comments-btn');
 const commentsSectionElement = document.getElementById('comments');
 const commentsFormElement = document.querySelector('#comments-form form');
@@ -24,15 +26,31 @@ function createCommentsList(comments) {
 
 async function fetschCommentsForPost() {
     const postId = loadCommentsBtnElement.dataset.postid;
-    const response = await fetch(`/posts/${postId}/comments`);
-    const responseData = await response.json();
+    try {
+        const response = await fetch(`/posts/${postId}/comments`);
 
-    const commentListElement = createCommentsList(responseData);
-    commentsSectionElement.innerHTML = '';
-    commentsSectionElement.appendChild(commentListElement);
+        if (!response.ok) {
+            alert('Fetching comments failed!');
+            return;
+        }
+    
+        const responseData = await response.json();
+    
+        if (responseData && responseData.length > 0) {
+            
+        const commentListElement = createCommentsList(responseData);
+        commentsSectionElement.innerHTML = '';
+        commentsSectionElement.appendChild(commentListElement);
+        } else {
+            commentsSectionElement.firstElementChild.textContent = 'We could not find any comments. Maybe add one?';
+        }
+    } catch(error) {
+        alert('Getting comments failed!');
+    }
+
 }
 
-function saveComment(event) {
+async function saveComment(event) {
     event.preventDefault();
     const postId = commentsFormElement.dataset.postid;
 
@@ -41,13 +59,24 @@ function saveComment(event) {
 
     const comment = {title: entredTitle, text: entredText};
 
-    fetch(`/posts/${postId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify(comment),
-        headers: {
-            'Content-Type': 'application/json'
+    try {
+        const respone = await fetch(`/posts/${postId}/comments`, {
+            method: 'POST',
+            body: JSON.stringify(comment),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+    
+        if (response.ok) {
+            fetschCommentsForPost();
+        } else {
+            alert('Could not send comment!');
         }
-    });
+    } catch (error) {
+        alert('Could not send request - maybe try it later');
+    }
+
 }
 
 loadCommentsBtnElement.addEventListener('click', fetschCommentsForPost);
